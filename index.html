@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Tickets de Companhia Aérea</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .tab-button.active {
+            border-bottom-color: #2563eb;
+            color: #2563eb;
+            font-weight: 600;
+        }
+        .seat {
+            transition: all 0.2s ease-in-out;
+        }
+        .seat.selected {
+            background-color: #2563eb;
+            color: white;
+            transform: scale(1.1);
+        }
+        .seat.unavailable {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            color: #e5e7eb;
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-plane-departure text-3xl text-blue-600"></i>
+                <h1 class="text-2xl font-bold text-gray-800">AeroSystem</h1>
+            </div>
+            <nav>
+                <a href="#" class="text-gray-600 hover:text-blue-600 px-3 py-2">Login</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-6">
+        
+        <!-- Tabs Navigation -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex space-x-6" id="tabs">
+                <button data-tab="search" class="tab-button active text-lg py-3 px-1 border-b-2 border-transparent hover:text-blue-500">
+                    <i class="fas fa-search mr-2"></i>Buscar Voos
+                </button>
+                <button data-tab="reservations" class="tab-button text-lg py-3 px-1 border-b-2 border-transparent hover:text-blue-500">
+                    <i class="fas fa-ticket-alt mr-2"></i>Minhas Reservas
+                </button>
+                <button data-tab="passengers" class="tab-button text-lg py-3 px-1 border-b-2 border-transparent hover:text-blue-500">
+                    <i class="fas fa-user-friends mr-2"></i>Passageiros
+                </button>
+                <button data-tab="flights" class="tab-button text-lg py-3 px-1 border-b-2 border-transparent hover:text-blue-500">
+                    <i class="fas fa-plane mr-2"></i>Gerenciar Voos
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="tab-content">
+            <!-- Search Flights Tab -->
+            <div id="search-content" class="space-y-8">
+                <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-6">Encontre o seu próximo destino</h2>
+                    <form id="search-flight-form" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                        <div>
+                            <label for="origin" class="block text-sm font-medium text-gray-700 mb-1">Origem</label>
+                            <input type="text" id="origin" placeholder="Cidade de partida" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        </div>
+                        <div>
+                            <label for="destination" class="block text-sm font-medium text-gray-700 mb-1">Destino</label>
+                            <input type="text" id="destination" placeholder="Cidade de chegada" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
+                            <i class="fas fa-search mr-2"></i>Buscar
+                        </button>
+                    </form>
+                </div>
+                <div id="flight-results" class="bg-white p-6 rounded-xl shadow-lg hidden">
+                    <h3 class="text-xl font-bold mb-4">Voos Disponíveis</h3>
+                    <div id="flight-list" class="space-y-4">
+                        <!-- Flight items will be injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Reservations Tab -->
+            <div id="reservations-content" class="hidden bg-white p-8 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-6">Suas Reservas</h2>
+                <div id="reservation-list" class="space-y-4">
+                    <p class="text-gray-500">Nenhuma reserva encontrada.</p>
+                </div>
+            </div>
+
+            <!-- Passengers Tab -->
+            <div id="passengers-content" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-6">Adicionar Novo Passageiro</h2>
+                    <form id="add-passenger-form" class="space-y-4">
+                        <input type="hidden" id="passenger-id">
+                        <div>
+                            <label for="passenger-name" class="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                            <input type="text" id="passenger-name" placeholder="Nome do passageiro" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="passenger-address" class="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                            <input type="text" id="passenger-address" placeholder="Endereço completo" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex space-x-4">
+                             <button type="submit" id="add-passenger-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors">Salvar Passageiro</button>
+                             <button type="button" id="cancel-edit-passenger-btn" class="w-full bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-300 transition-colors hidden">Cancelar Edição</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-6">Passageiros Cadastrados</h2>
+                    <div id="passenger-list" class="space-y-3 max-h-96 overflow-y-auto">
+                        <p class="text-gray-500">Nenhum passageiro cadastrado.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flights Tab -->
+            <div id="flights-content" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-8">
+                 <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-6">Adicionar Novo Voo</h2>
+                    <form id="add-flight-form" class="space-y-4">
+                         <input type="hidden" id="flight-id">
+                        <div>
+                            <label for="flight-origin" class="block text-sm font-medium text-gray-700 mb-1">Origem</label>
+                            <input type="text" id="flight-origin" placeholder="Cidade de partida" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="flight-destination" class="block text-sm font-medium text-gray-700 mb-1">Destino</label>
+                            <input type="text" id="flight-destination" placeholder="Cidade de chegada" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex space-x-4">
+                            <button type="submit" id="add-flight-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors">Salvar Voo</button>
+                            <button type="button" id="cancel-edit-flight-btn" class="w-full bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-300 transition-colors hidden">Cancelar Edição</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-6">Voos Cadastrados</h2>
+                    <div id="all-flights-list" class="space-y-3 max-h-96 overflow-y-auto">
+                         <p class="text-gray-500">Nenhum voo cadastrado.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 m-4">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Realizar Reserva</h2>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <form id="booking-form" class="space-y-6">
+                <div id="modal-flight-details" class="bg-gray-100 p-4 rounded-lg">
+                    <!-- Flight details will be injected here -->
+                </div>
+                 <div>
+                    <label for="modal-passenger" class="block text-sm font-medium text-gray-700 mb-1">Selecione o Passageiro</label>
+                    <select id="modal-passenger" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></select>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">Selecione seu assento</h3>
+                    <div id="seat-map" class="grid grid-cols-5 gap-2 md:gap-4 p-4 bg-gray-50 rounded-lg border">
+                        <!-- Seat map will be generated here -->
+                    </div>
+                     <input type="hidden" id="selected-seat" required>
+                </div>
+                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-colors">Confirmar Reserva</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-gray-800 text-white py-3 px-6 rounded-lg shadow-xl transform translate-y-20 opacity-0 transition-all duration-300">
+        <!-- Message here -->
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE MANAGEMENT (Simulating the C backend) ---
+            let passengers = [];
+            let flights = [];
+            let reservations = [];
+            let nextPassengerId = 1;
+            let nextFlightId = 1;
+            let nextReservationId = 1;
+
+            // --- UI ELEMENTS ---
+            const tabs = document.getElementById('tabs');
+            const tabContent = document.getElementById('tab-content');
+            const searchForm = document.getElementById('search-flight-form');
+            const flightResultsContainer = document.getElementById('flight-results');
+            const flightList = document.getElementById('flight-list');
+            const passengerForm = document.getElementById('add-passenger-form');
+            const passengerList = document.getElementById('passenger-list');
+            const flightForm = document.getElementById('add-flight-form');
+            const allFlightsList = document.getElementById('all-flights-list');
+            const reservationList = document.getElementById('reservation-list');
+            const bookingModal = document.getElementById('booking-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const bookingForm = document.getElementById('booking-form');
+            const toast = document.getElementById('toast');
+
+            // --- INITIAL DATA (Mock Data) ---
+            function initializeData() {
+                // Add some initial passengers
+                addPassenger('João da Silva', 'Rua das Flores, 123');
+                addPassenger('Maria Oliveira', 'Av. Brasil, 456');
+                
+                // Add some initial flights
+                addFlight('Fortaleza', 'São Paulo');
+                addFlight('São Paulo', 'Rio de Janeiro');
+                addFlight('Recife', 'Salvador');
+                addFlight('Fortaleza', 'Recife');
+
+                renderAll();
+            }
+
+            // --- RENDER FUNCTIONS ---
+            function renderAll() {
+                renderPassengerList();
+                renderAllFlightsList();
+                renderReservations();
+                updatePassengerDropdown();
+            }
+            
+            function renderPassengerList() {
+                const list = document.getElementById('passenger-list');
+                list.innerHTML = '';
+                if (passengers.length === 0) {
+                    list.innerHTML = '<p class="text-gray-500">Nenhum passageiro cadastrado.</p>';
+                    return;
+                }
+                passengers.forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-gray-50 p-3 rounded-lg flex justify-between items-center';
+                    div.innerHTML = `
+                        <div>
+                            <p class="font-semibold">${p.name}</p>
+                            <p class="text-sm text-gray-600">${p.address}</p>
+                        </div>
+                        <div class="space-x-2">
+                            <button data-id="${p.id}" class="edit-passenger-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                            <button data-id="${p.id}" class="delete-passenger-btn text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            }
+
+            function renderAllFlightsList() {
+                 const list = document.getElementById('all-flights-list');
+                list.innerHTML = '';
+                 if (flights.length === 0) {
+                    list.innerHTML = '<p class="text-gray-500">Nenhum voo cadastrado.</p>';
+                    return;
+                }
+                flights.forEach(f => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-gray-50 p-3 rounded-lg flex justify-between items-center';
+                    div.innerHTML = `
+                        <div>
+                            <p class="font-semibold">Voo #${f.id.toString().padStart(3, '0')}</p>
+                            <p class="text-sm text-gray-600">${f.origin} <i class="fas fa-long-arrow-alt-right mx-2"></i> ${f.destination}</p>
+                        </div>
+                        <div class="space-x-2">
+                             <button data-id="${f.id}" class="edit-flight-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                             <button data-id="${f.id}" class="delete-flight-btn text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            }
+
+            function renderReservations() {
+                reservationList.innerHTML = '';
+                if (reservations.length === 0) {
+                    reservationList.innerHTML = '<p class="text-gray-500">Nenhuma reserva encontrada.</p>';
+                    return;
+                }
+                reservations.forEach(r => {
+                    const passenger = passengers.find(p => p.id === r.passengerId);
+                    const flight = flights.find(f => f.id === r.flightId);
+                    if (!passenger || !flight) return;
+
+                    const div = document.createElement('div');
+                    div.className = 'bg-gray-100 p-4 rounded-lg border';
+                    div.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-lg">Reserva #${r.id.toString().padStart(4, '0')}</p>
+                                <p><span class="font-semibold">Passageiro:</span> ${passenger.name}</p>
+                                <p><span class="font-semibold">Voo:</span> ${flight.origin} para ${flight.destination}</p>
+                                <p><span class="font-semibold">Assento:</span> ${r.seat}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-500">Cód. Voo: ${flight.id.toString().padStart(3, '0')}</p>
+                                <button data-id="${r.id}" class="cancel-reservation-btn mt-2 bg-red-100 text-red-700 px-3 py-1 rounded text-sm font-semibold hover:bg-red-200">Cancelar</button>
+                            </div>
+                        </div>
+                    `;
+                    reservationList.appendChild(div);
+                });
+            }
+
+             function updatePassengerDropdown() {
+                const select = document.getElementById('modal-passenger');
+                select.innerHTML = '<option value="">-- Selecione --</option>';
+                passengers.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = p.name;
+                    select.appendChild(option);
+                });
+            }
+
+
+            // --- CORE LOGIC FUNCTIONS ---
+            function addPassenger(name, address) {
+                const newPassenger = { id: nextPassengerId++, name, address };
+                passengers.push(newPassenger);
+                return newPassenger;
+            }
+
+            function editPassenger(id, name, address) {
+                 const passenger = passengers.find(p => p.id === id);
+                if(passenger) {
+                    passenger.name = name;
+                    passenger.address = address;
+                }
+            }
+
+            function deletePassenger(id) {
+                if (reservations.some(r => r.passengerId === id)) {
+                    showToast('Não é possível excluir passageiro com reservas ativas.', 'error');
+                    return;
+                }
+                passengers = passengers.filter(p => p.id !== id);
+                showToast('Passageiro excluído com sucesso.', 'success');
+                renderAll();
+            }
+            
+            function addFlight(origin, destination) {
+                const newFlight = { id: nextFlightId++, origin, destination };
+                flights.push(newFlight);
+                return newFlight;
+            }
+
+            function editFlight(id, origin, destination) {
+                 const flight = flights.find(f => f.id === id);
+                if (flight) {
+                    flight.origin = origin;
+                    flight.destination = destination;
+                }
+            }
+            
+            function deleteFlight(id) {
+                if(reservations.some(r => r.flightId === id)) {
+                    showToast('Não é possível excluir voo com reservas ativas.', 'error');
+                    return;
+                }
+                flights = flights.filter(f => f.id !== id);
+                showToast('Voo excluído com sucesso.', 'success');
+                renderAll();
+            }
+
+            function addReservation(flightId, passengerId, seat) {
+                 const reservation = { id: nextReservationId++, flightId, passengerId, seat };
+                 reservations.push(reservation);
+                 showToast('Reserva confirmada com sucesso!', 'success');
+                 renderAll();
+                 closeBookingModal();
+            }
+
+            function cancelReservation(id) {
+                reservations = reservations.filter(r => r.id !== id);
+                showToast('Reserva cancelada.', 'success');
+                renderAll();
+            }
+
+            // --- UI LOGIC ---
+            tabs.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const tabName = e.target.dataset.tab;
+
+                    // Update button styles
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+
+                    // Show/hide content
+                    document.querySelectorAll('#tab-content > div').forEach(content => content.classList.add('hidden'));
+                    document.getElementById(`${tabName}-content`).classList.remove('hidden');
+                }
+            });
+            
+            searchForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const origin = document.getElementById('origin').value.toLowerCase();
+                const destination = document.getElementById('destination').value.toLowerCase();
+
+                const results = flights.filter(f => 
+                    f.origin.toLowerCase().includes(origin) && 
+                    f.destination.toLowerCase().includes(destination)
+                );
+
+                flightList.innerHTML = '';
+                if (results.length > 0) {
+                    results.forEach(f => {
+                        const div = document.createElement('div');
+                        div.className = 'border border-gray-200 p-4 rounded-lg flex justify-between items-center';
+                        div.innerHTML = `
+                            <div>
+                                <p class="text-xl font-bold">${f.origin} <i class="fas fa-plane text-gray-500 mx-4"></i> ${f.destination}</p>
+                                <p class="text-sm text-gray-500">Voo #${f.id.toString().padStart(3, '0')}</p>
+                            </div>
+                            <button data-flight-id="${f.id}" class="select-flight-btn bg-blue-100 text-blue-700 font-semibold px-4 py-2 rounded-lg hover:bg-blue-200">Selecionar Voo</button>
+                        `;
+                        flightList.appendChild(div);
+                    });
+                } else {
+                    flightList.innerHTML = '<p class="text-gray-500">Nenhum voo encontrado para esta rota.</p>';
+                }
+                flightResultsContainer.classList.remove('hidden');
+            });
+            
+            flightList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('select-flight-btn')) {
+                    const flightId = parseInt(e.target.dataset.flightId);
+                    openBookingModal(flightId);
+                }
+            });
+
+            passengerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = parseInt(document.getElementById('passenger-id').value);
+                const name = document.getElementById('passenger-name').value;
+                const address = document.getElementById('passenger-address').value;
+                
+                if (id) {
+                    editPassenger(id, name, address);
+                    showToast('Passageiro atualizado com sucesso.', 'success');
+                } else {
+                    addPassenger(name, address);
+                    showToast('Passageiro adicionado com sucesso.', 'success');
+                }
+
+                passengerForm.reset();
+                document.getElementById('passenger-id').value = '';
+                document.getElementById('add-passenger-btn').textContent = 'Salvar Passageiro';
+                document.getElementById('cancel-edit-passenger-btn').classList.add('hidden');
+                renderAll();
+            });
+
+            passengerList.addEventListener('click', (e) => {
+                const targetButton = e.target.closest('button');
+                if (!targetButton) return;
+
+                const id = parseInt(targetButton.dataset.id);
+                if (targetButton.classList.contains('delete-passenger-btn')) {
+                    deletePassenger(id);
+                } else if(targetButton.classList.contains('edit-passenger-btn')) {
+                    const passenger = passengers.find(p => p.id === id);
+                    if (passenger) {
+                        document.getElementById('passenger-id').value = passenger.id;
+                        document.getElementById('passenger-name').value = passenger.name;
+                        document.getElementById('passenger-address').value = passenger.address;
+                        document.getElementById('add-passenger-btn').textContent = 'Atualizar Passageiro';
+                        document.getElementById('cancel-edit-passenger-btn').classList.remove('hidden');
+                    }
+                }
+            });
+            
+             document.getElementById('cancel-edit-passenger-btn').addEventListener('click', () => {
+                passengerForm.reset();
+                document.getElementById('passenger-id').value = '';
+                document.getElementById('add-passenger-btn').textContent = 'Salvar Passageiro';
+                document.getElementById('cancel-edit-passenger-btn').classList.add('hidden');
+            });
+            
+             flightForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = parseInt(document.getElementById('flight-id').value);
+                const origin = document.getElementById('flight-origin').value;
+                const destination = document.getElementById('flight-destination').value;
+
+                if (id) {
+                    editFlight(id, origin, destination);
+                    showToast('Voo atualizado com sucesso.', 'success');
+                } else {
+                    addFlight(origin, destination);
+                    showToast('Voo adicionado com sucesso.', 'success');
+                }
+
+                flightForm.reset();
+                document.getElementById('flight-id').value = '';
+                document.getElementById('add-flight-btn').textContent = 'Salvar Voo';
+                document.getElementById('cancel-edit-flight-btn').classList.add('hidden');
+                renderAll();
+            });
+
+            allFlightsList.addEventListener('click', (e) => {
+                const targetButton = e.target.closest('button');
+                if (!targetButton) return;
+                
+                const id = parseInt(targetButton.dataset.id);
+                if (targetButton.classList.contains('delete-flight-btn')) {
+                    deleteFlight(id);
+                } else if(targetButton.classList.contains('edit-flight-btn')) {
+                    const flight = flights.find(f => f.id === id);
+                    if (flight) {
+                        document.getElementById('flight-id').value = flight.id;
+                        document.getElementById('flight-origin').value = flight.origin;
+                        document.getElementById('flight-destination').value = flight.destination;
+                        document.getElementById('add-flight-btn').textContent = 'Atualizar Voo';
+                        document.getElementById('cancel-edit-flight-btn').classList.remove('hidden');
+                    }
+                }
+            });
+            
+            document.getElementById('cancel-edit-flight-btn').addEventListener('click', () => {
+                flightForm.reset();
+                document.getElementById('flight-id').value = '';
+                document.getElementById('add-flight-btn').textContent = 'Salvar Voo';
+                document.getElementById('cancel-edit-flight-btn').classList.add('hidden');
+            });
+            
+            reservationList.addEventListener('click', (e) => {
+                 if (e.target.classList.contains('cancel-reservation-btn')) {
+                    const id = parseInt(e.target.dataset.id);
+                    cancelReservation(id);
+                }
+            });
+
+            // --- MODAL LOGIC ---
+            function openBookingModal(flightId) {
+                const flight = flights.find(f => f.id === flightId);
+                if (!flight) return;
+
+                // Set flight details
+                const detailsContainer = document.getElementById('modal-flight-details');
+                detailsContainer.innerHTML = `
+                    <p class="font-bold text-lg">${flight.origin} para ${flight.destination}</p>
+                    <p class="text-sm text-gray-600">Código do Voo: ${flight.id.toString().padStart(3, '0')}</p>
+                `;
+                document.getElementById('booking-form').dataset.flightId = flightId;
+                
+                // Generate seat map
+                generateSeatMap(flightId);
+
+                // Show modal
+                bookingModal.classList.remove('hidden');
+            }
+
+            function closeBookingModal() {
+                bookingModal.classList.add('hidden');
+                bookingForm.reset();
+            }
+
+            function generateSeatMap(flightId) {
+                const seatMap = document.getElementById('seat-map');
+                const selectedSeatInput = document.getElementById('selected-seat');
+                seatMap.innerHTML = '';
+                selectedSeatInput.value = '';
+
+                const reservedSeats = reservations
+                    .filter(r => r.flightId === flightId)
+                    .map(r => r.seat);
+                
+                const seatLetters = ['A', 'B', 'C'];
+                let seatCount = 0;
+                
+                // Add window/aisle labels
+                seatMap.innerHTML += '<div></div><div class="text-center text-sm text-gray-500">Janela</div><div></div><div class="text-center text-sm text-gray-500">Janela</div><div></div>';
+
+                for (let i = 0; i < 10; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        const seatName = `${seatLetters[j]}${i}`;
+                        const seatDiv = document.createElement('div');
+                        seatDiv.textContent = seatName;
+                        seatDiv.dataset.seatName = seatName;
+                        seatDiv.className = 'seat p-2 text-center border rounded-md cursor-pointer font-mono hover:bg-blue-200';
+                        
+                        if (reservedSeats.includes(seatName)) {
+                            seatDiv.classList.add('unavailable');
+                        }
+                        
+                        seatMap.appendChild(seatDiv);
+                    }
+                     // Add an aisle spacer
+                    if (i < 10) {
+                         seatMap.innerHTML += '<div class="col-span-1"></div><div class="col-span-1"></div>';
+                    }
+                }
+
+                seatMap.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('seat') && !e.target.classList.contains('unavailable')) {
+                        // Unselect previous
+                        const currentSelected = seatMap.querySelector('.selected');
+                        if (currentSelected) {
+                            currentSelected.classList.remove('selected');
+                        }
+                        // Select new
+                        e.target.classList.add('selected');
+                        selectedSeatInput.value = e.target.dataset.seatName;
+                    }
+                });
+            }
+            
+            bookingForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const flightId = parseInt(e.target.dataset.flightId);
+                const passengerId = parseInt(document.getElementById('modal-passenger').value);
+                const seat = document.getElementById('selected-seat').value;
+
+                if (!passengerId) {
+                    showToast('Por favor, selecione um passageiro.', 'error');
+                    return;
+                }
+                if (!seat) {
+                     showToast('Por favor, selecione um assento.', 'error');
+                    return;
+                }
+
+                addReservation(flightId, passengerId, seat);
+            });
+
+            closeModalBtn.addEventListener('click', closeBookingModal);
+            let toastTimer;
+            function showToast(message, type = 'success') {
+                clearTimeout(toastTimer);
+                toast.textContent = message;
+                toast.className = 'fixed bottom-5 right-5 text-white py-3 px-6 rounded-lg shadow-xl transform transition-all duration-300'; // Reset classes
+                if (type === 'error') {
+                     toast.classList.add('bg-red-600');
+                } else {
+                    toast.classList.add('bg-gray-800');
+                }
+                toast.classList.remove('translate-y-20', 'opacity-0');
+
+                toastTimer = setTimeout(() => {
+                    toast.classList.add('translate-y-20', 'opacity-0');
+                }, 3000);
+            }
+
+            // --- Start the app ---
+            initializeData();
+        });
+    </script>
+</body>
+</html>
